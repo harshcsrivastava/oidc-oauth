@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register Application</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #ffffff;
+            --fg: #09090b;
+            --muted: #71717a;
+            --muted-bg: #f4f4f5;
+            --border: #e4e4e7;
+            --input-bg: #ffffff;
+            --ring: #18181b;
+            --card-bg: #ffffff;
+            --card-shadow: 0 1px 3px 0 rgb(0 0 0 / .1), 0 1px 2px -1px rgb(0 0 0 / .1);
+            --radius: 0.5rem;
+            --btn-bg: #18181b;
+            --btn-fg: #fafafa;
+            --btn-hover: #27272a;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #09090b;
+                --fg: #fafafa;
+                --muted: #a1a1aa;
+                --muted-bg: #27272a;
+                --border: #27272a;
+                --input-bg: #09090b;
+                --ring: #d4d4d8;
+                --card-bg: #18181b;
+                --card-shadow: 0 1px 3px 0 rgb(0 0 0 / .4), 0 1px 2px -1px rgb(0 0 0 / .4);
+                --btn-bg: #fafafa;
+                --btn-fg: #18181b;
+                --btn-hover: #e4e4e7;
+            }
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            -webkit-font-smoothing: antialiased;
+        }
+        .card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) + 4px);
+            box-shadow: var(--card-shadow);
+            padding: 2rem;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+        .icon {
+            width: 40px;
+            height: 40px;
+            background: var(--fg);
+            border-radius: var(--radius);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .icon svg { color: var(--bg); }
+        h1 {
+            font-size: 1.375rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.3;
+        }
+        .subtitle {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-top: 0.35rem;
+        }
+        .form { display: flex; flex-direction: column; gap: 1rem; }
+        .field { display: flex; flex-direction: column; gap: 0.4rem; }
+        label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--fg);
+        }
+        input {
+            width: 100%;
+            height: 2.375rem;
+            padding: 0 0.75rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: var(--fg);
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        input::placeholder { color: var(--muted); }
+        input:focus {
+            border-color: var(--ring);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 20%, transparent);
+        }
+        button[type="submit"] {
+            width: 100%;
+            height: 2.375rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--btn-fg);
+            background: var(--btn-bg);
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-top: 0.25rem;
+            transition: background 0.15s, opacity 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        button[type="submit"]:hover { background: var(--btn-hover); }
+        button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+        .success-msg {
+            display: none;
+            font-size: 0.8125rem;
+            color: #22c55e;
+            background: color-mix(in srgb, #22c55e 10%, transparent);
+            border: 1px solid color-mix(in srgb, #22c55e 25%, transparent);
+            border-radius: var(--radius);
+            padding: 0.625rem 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .error-msg {
+            display: none;
+            font-size: 0.8125rem;
+            color: #ef4444;
+            background: color-mix(in srgb, #ef4444 10%, transparent);
+            border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
+            border-radius: var(--radius);
+            padding: 0.625rem 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="7" width="18" height="13" rx="2"/>
+                    <path d="M16 3v4M8 3v4"/>
+                </svg>
+            </div>
+            <h1>Register Application</h1>
+            <p class="subtitle">Fill in the details to register a new OAuth application</p>
+        </div>
+        <form class="form" id="registerAppForm" novalidate>
+            <div id="successMsg" class="success-msg" role="alert"></div>
+            <div id="errorMsg" class="error-msg" role="alert"></div>
+            <div class="field">
+                <label for="displayName">Display Name*</label>
+                <input type="text" id="displayName" name="displayName" required placeholder="My App Name" />
+            </div>
+            <div class="field">
+                <label for="appUrl">Application URL*</label>
+                <input type="url" id="appUrl" name="appUrl" required placeholder="https://myapp.com" />
+            </div>
+            <div class="field">
+                <label for="redirectUri">Redirect URI*</label>
+                <input type="url" id="redirectUri" name="redirectUri" required placeholder="https://myapp.com/callback" />
+            </div>
+            <div class="field">
+                <label for="scopes">Scopes</label>
+                <input type="text" id="scopes" name="scopes" placeholder="openid profile email" />
+            </div>
+            <div class="field">
+                <label for="grantTypes">Grant Types</label>
+                <input type="text" id="grantTypes" name="grantTypes" placeholder="authorization_code" />
+            </div>
+            <button type="submit" id="submitBtn">Register Application</button>
+        </form>
+    </div>
+    <script>
+        const form = document.getElementById('registerAppForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const successMsg = document.getElementById('successMsg');
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+            successMsg.style.display = 'none';
+        }
+        function showSuccess(msg) {
+            successMsg.innerHTML = msg;
+            successMsg.style.display = 'block';
+            errorMsg.style.display = 'none';
+        }
+        function hideMessages() {
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+        }
+        function setLoading(loading) {
+            submitBtn.disabled = loading;
+            submitBtn.textContent = loading ? 'Registering…' : 'Register Application';
+        }
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideMessages();
+            const displayName = document.getElementById('displayName').value.trim();
+            const appUrl = document.getElementById('appUrl').value.trim();
+            const redirectUri = document.getElementById('redirectUri').value.trim();
+            const scopes = document.getElementById('scopes').value.trim();
+            const grantTypes = document.getElementById('grantTypes').value.trim();
+            if (!displayName || !appUrl || !redirectUri) {
+                showError('Display Name, Application URL, and Redirect URI are required.');
+                return;
+            }
+            setLoading(true);
+            const body = { displayName, appUrl, redirectUri };
+            if (scopes) body.scopes = scopes;
+            if (grantTypes) body.grantTypes = grantTypes;
+            try {
+                const res = await fetch('/admin/apps/new', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showSuccess(`<b>${data.message}</b><br>Client ID: <code>${data.client_id}</code><br>Client Secret: <code>${data.client_secret}</code><br>Live Link: <code>${data.live_link}</code>`);
+                    form.reset();
+                } else {
+                    showError(data.message || 'Error occurred.');
+                }
+            } catch (err) {
+                showError('Failed to register application.');
+            } finally {
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+</html>

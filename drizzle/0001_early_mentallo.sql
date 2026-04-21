@@ -1,0 +1,1 @@
+ALTER TABLE "authorization_codes" RENAME COLUMN "scope" TO "scopes";

@@ -231,7 +231,7 @@
         </svg>
       </div>
       <h1>Welcome back</h1>
-      <p class="subtitle">Sign in to your account to continue</p>
+      <p class="subtitle">Sign in to <span id="displayName"></span>  to continue</p>
     </div>
 
     <form class="form" id="loginForm" novalidate>
@@ -271,7 +271,7 @@
     </form>
 
     <div class="footer">
-      Don't have an account? <a href="/signup.html">Sign up</a>
+      Don't have an account? <a id="signupLink" href="/signup.html">Sign up</a>
     </div>
   </div>
 
@@ -281,8 +281,15 @@
     const spinner = document.getElementById('spinner');
     const btnText = document.getElementById('btnText');
     const errorMsg = document.getElementById('errorMsg');
+    const displayName = document.getElementById('displayName');
+    const signupLink = document.getElementById('signupLink');
 
     const params = new URLSearchParams(window.location.search);
+    const queryString = params.toString();
+
+    if (queryString) {
+      signupLink.href = `/signup.html?${queryString}`;
+    }
 
     function showError(msg) {
       errorMsg.textContent = msg;
@@ -298,6 +305,29 @@
       spinner.style.display = loading ? 'block' : 'none';
       btnText.textContent = loading ? 'Signing in…' : 'Sign in';
     }
+    async function setDisplayName() {
+      try {
+        const res = await fetch("/admin/apps/appname", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: params.get('client_id') })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          showError(data.message || "Something went wrong. Please try again.");
+          return;
+        }
+
+        displayName.textContent = data.displayName;
+      } catch (error) {
+        showError("Something went wrong. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    setDisplayName()
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -317,6 +347,7 @@
         const res = await fetch('/o/authenticate/sign-in', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             email,
             password,
@@ -334,8 +365,8 @@
         } else if (data.redirect) {
           window.location.href = data.redirect;
         }
-      } catch {
-        showError('Something went wrong. Please try again.');
+      } catch (error) {
+        showError(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
       } finally {
         setLoading(false);
       }

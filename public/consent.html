@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Authorize Application</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                --bg: #ffffff;
+                --fg: #09090b;
+                --muted: #71717a;
+                --muted-bg: #f4f4f5;
+                --border: #e4e4e7;
+                --input-bg: #ffffff;
+                --ring: #18181b;
+                --card-bg: #ffffff;
+                --card-shadow:
+                    0 1px 3px 0 rgb(0 0 0 / 0.1),
+                    0 1px 2px -1px rgb(0 0 0 / 0.1);
+                --radius: 0.5rem;
+                --btn-bg: #18181b;
+                --btn-fg: #fafafa;
+                --btn-hover: #27272a;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #09090b;
+                    --fg: #fafafa;
+                    --muted: #a1a1aa;
+                    --muted-bg: #27272a;
+                    --border: #27272a;
+                    --input-bg: #09090b;
+                    --ring: #d4d4d8;
+                    --card-bg: #18181b;
+                    --card-shadow:
+                        0 1px 3px 0 rgb(0 0 0 / 0.4),
+                        0 1px 2px -1px rgb(0 0 0 / 0.4);
+                    --btn-bg: #fafafa;
+                    --btn-fg: #18181b;
+                    --btn-hover: #e4e4e7;
+                }
+            }
+
+            body {
+                font-family:
+                    "Inter",
+                    system-ui,
+                    -apple-system,
+                    sans-serif;
+                background-color: var(--bg);
+                color: var(--fg);
+                min-height: 100dvh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            .card {
+                width: 100%;
+                max-width: 360px;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: calc(var(--radius) + 4px);
+                box-shadow: var(--card-shadow);
+                padding: 2rem;
+            }
+
+            .header {
+                text-align: center;
+                margin-bottom: 1.75rem;
+            }
+
+            .icon {
+                width: 40px;
+                height: 40px;
+                background: var(--fg);
+                border-radius: var(--radius);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 1rem;
+            }
+
+            .icon svg {
+                color: var(--bg);
+            }
+
+            h1 {
+                font-size: 1.375rem;
+                font-weight: 600;
+                letter-spacing: -0.02em;
+                line-height: 1.3;
+            }
+
+            .subtitle {
+                font-size: 0.875rem;
+                color: var(--muted);
+                margin-top: 0.35rem;
+            }
+
+            .details {
+                margin: 1rem 0;
+                text-align: left;
+                color: var(--muted);
+                font-size: 0.95rem;
+            }
+
+            .detail-group + .detail-group {
+                margin-top: 0.875rem;
+            }
+
+            .detail-group strong {
+                display: inline-block;
+                margin-bottom: 0.375rem;
+            }
+
+            .detail-group ul {
+                padding-left: 1.15rem;
+            }
+
+            .detail-group li + li {
+                margin-top: 0.2rem;
+            }
+
+            .actions {
+                display: flex;
+                gap: 1rem;
+                justify-content: center;
+                margin-top: 1.5rem;
+            }
+
+            button {
+                padding: 0.75rem 1.5rem;
+                border: none;
+                border-radius: var(--radius);
+                font-size: 0.95rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition:
+                    background 0.15s,
+                    opacity 0.15s;
+            }
+            .allow {
+                background: var(--btn-bg);
+                color: var(--btn-fg);
+            }
+            .allow:hover {
+                background: var(--btn-hover);
+            }
+            .deny {
+                background: #ef4444;
+                color: #fafafa;
+            }
+            .deny:hover {
+                background: #dc2626;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="header">
+                <div class="icon">
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z" />
+                        <path d="M20 21a8 8 0 1 0-16 0" />
+                    </svg>
+                </div>
+                <h1>Authorize Application</h1>
+                <p class="subtitle">
+                    <span id="appName">App Name</span> is requesting access to
+                    your account.
+                </p>
+            </div>
+            <div class="details">
+                <div class="detail-group">
+                    <strong>Requested scopes:</strong>
+                    <ul id="scopeList"></ul>
+                </div>
+                <div class="detail-group">
+                    <strong>Supported grant types:</strong>
+                    <ul id="grantTypeList"></ul>
+                </div>
+            </div>
+            <form id="consentForm">
+                <input type="hidden" name="client_id" id="clientId" />
+                <input type="hidden" name="redirect_uri" id="redirectUri" />
+                <input type="hidden" name="state" id="state" />
+                <input type="hidden" name="scope" id="scope" />
+                <input type="hidden" name="action" id="action" />
+                <input type="hidden" name="error" id="error" />
+                <input
+                    type="hidden"
+                    name="error_description"
+                    id="errorDescription"
+                />
+                <div class="actions">
+                    <button type="button" id="allowBtn" class="allow">
+                        Allow
+                    </button>
+                    <button type="button" id="denyBtn" class="deny">
+                        Deny
+                    </button>
+                </div>
+            </form>
+        </div>
+        <script>
+            const params = new URLSearchParams(window.location.search);
+            const allowBtn = document.getElementById("allowBtn");
+            const denyBtn = document.getElementById("denyBtn");
+            const actionInput = document.getElementById("action");
+            const errorInput = document.getElementById("error");
+            const errorDescriptionInput =
+                document.getElementById("errorDescription");
+            const scopeInput = document.getElementById("scope");
+
+            document.getElementById("clientId").value =
+                params.get("client_id") || "";
+            document.getElementById("redirectUri").value =
+                params.get("redirect_uri") || "";
+            document.getElementById("state").value = params.get("state") || "";
+            scopeInput.value = params.get("scope") || "";
+
+            function setSubmitting(isSubmitting) {
+                allowBtn.disabled = isSubmitting;
+                denyBtn.disabled = isSubmitting;
+            }
+
+            async function submitConsentAction(actionType) {
+                actionInput.value = actionType;
+
+                if (actionType === "deny") {
+                    errorInput.value = "access_denied";
+                    errorDescriptionInput.value = "The user did not consent.";
+                } else {
+                    errorInput.value = "";
+                    errorDescriptionInput.value = "";
+                }
+
+                const payload = {
+                    client_id: document.getElementById("clientId").value,
+                    redirect_uri: document.getElementById("redirectUri").value,
+                    state: document.getElementById("state").value,
+                    scope: scopeInput.value,
+                    action: actionInput.value,
+                    error: errorInput.value,
+                    error_description: errorDescriptionInput.value,
+                };
+
+                setSubmitting(true);
+                try {
+                    const res = await fetch("/o/consent", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (res.redirected) {
+                        window.location.href = res.url;
+                        return;
+                    }
+
+                    const data = await res.json().catch(() => ({}));
+
+                    if (data.redirect) {
+                        if (!data.success) alert("Permission Denied");
+                        window.location.href = data.redirect;
+                        return;
+                    }
+
+                    throw new Error(
+                        data.message || "Unable to process consent.",
+                    );
+                } catch (err) {
+                    console.error(err);
+                    alert(
+                        err instanceof Error
+                            ? err.message
+                            : "Something went wrong. Please try again.",
+                    );
+                } finally {
+                    setSubmitting(false);
+                }
+            }
+
+            allowBtn.addEventListener("click", () =>
+                submitConsentAction("allow"),
+            );
+            denyBtn.addEventListener("click", () =>
+                submitConsentAction("deny"),
+            );
+
+            function normalizeToArray(input) {
+                if (Array.isArray(input)) {
+                    return input
+                        .map((item) => String(item).trim())
+                        .filter(Boolean);
+                }
+
+                if (typeof input === "string") {
+                    return input
+                        .split(/[\s,]+/)
+                        .map((item) => item.trim())
+                        .filter(Boolean);
+                }
+
+                return [];
+            }
+
+            function renderList(targetId, values, fallbackText) {
+                const list = document.getElementById(targetId);
+                list.innerHTML = "";
+
+                if (!values.length) {
+                    const li = document.createElement("li");
+                    li.textContent = fallbackText;
+                    list.appendChild(li);
+                    return;
+                }
+
+                values.forEach((value) => {
+                    const li = document.createElement("li");
+                    li.textContent = value;
+                    list.appendChild(li);
+                });
+            }
+
+            const requestedScopes = normalizeToArray(params.get("scope"));
+
+            fetch(`/admin/apps/appname`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ client_id: params.get("client_id") }),
+            })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data.displayName) {
+                        document.getElementById("appName").textContent =
+                            data.displayName;
+                    }
+
+                    const appScopes = normalizeToArray(data.scopes);
+                    const appGrantTypes = normalizeToArray(data.grantTypes);
+
+                    renderList(
+                        "scopeList",
+                        requestedScopes.length ? requestedScopes : appScopes,
+                        "No scopes requested",
+                    );
+                    scopeInput.value = (
+                        requestedScopes.length ? requestedScopes : appScopes
+                    ).join(" ");
+                    renderList("grantTypeList", appGrantTypes, "Not specified");
+                })
+                .catch(() => {
+                    renderList(
+                        "scopeList",
+                        requestedScopes,
+                        "No scopes requested",
+                    );
+                    scopeInput.value = requestedScopes.join(" ");
+                    renderList("grantTypeList", [], "Not specified");
+                });
+        </script>
+    </body>
+</html>

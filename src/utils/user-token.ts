@@ -9,3 +9,9 @@ export interface JWTClaims {
     name: string;
     picture?: string;
 }
+
+export interface BaseClaims {
+    iss: string;
+    sub: string;
+    iat: number;
+}

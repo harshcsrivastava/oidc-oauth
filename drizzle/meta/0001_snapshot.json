@@ -1,6 +1,6 @@
 {
-  "id": "48c75c94-0565-4dc1-8839-6e7ae9cb411f",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "89407911-adba-4e11-a331-2e19a44306ee",
+  "prevId": "48c75c94-0565-4dc1-8839-6e7ae9cb411f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -118,9 +118,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "scope": {
-          "name": "scope",
-          "type": "text",
+        "scopes": {
+          "name": "scopes",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": true
         },
