@@ -92,157 +92,272 @@ app.get("/.well-known/openid-configuration", (req, res) => {
 });
 
 app.post("/o/tokeninfo", async (req, res) => {
-    const { grant_type, code, client_id, client_secret, redirect_uri } =
-        req.body;
+    const {
+        grant_type,
+        code,
+        client_id,
+        client_secret,
+        redirect_uri,
+        refresh_token,
+    } = req.body;
 
-    if (grant_type !== "authorization_code") {
-        return res.status(400).json({
-            error: "unsupported_grant_type",
-            error_description:
-                "Only authorization_code grant_type is supported.",
+    if (grant_type === "authorization_code") {
+        if (!code || !client_id || !client_secret || !redirect_uri) {
+            return res.status(400).json({
+                error: "invalid_request",
+                error_description:
+                    "code, client_id, client_secret and redirect_uri are required.",
+            });
+        }
+
+        const [appRecord] = await db
+            .select()
+            .from(applicationsTable)
+            .where(eq(applicationsTable.clientId, client_id))
+            .limit(1);
+
+        if (!appRecord) {
+            return res.status(401).json({
+                error: "invalid_client",
+                error_description: "Client authentication failed.",
+            });
+        }
+
+        const secretHash = crypto
+            .createHash("sha256")
+            .update(client_secret)
+            .digest("hex");
+
+        if (secretHash !== appRecord.clientSecret) {
+            return res.status(401).json({
+                error: "invalid_client",
+                error_description: "Client authentication failed.",
+            });
+        }
+
+        const [auth] = await db
+            .select()
+            .from(authorizationCodesTable)
+            .where(eq(authorizationCodesTable.code, code))
+            .limit(1);
+
+        if (
+            !auth ||
+            new Date(auth.expiresAt).getTime() < Date.now() ||
+            auth.consumedAt !== null
+        ) {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description: "Authorization code is invalid or expired.",
+            });
+        }
+
+        if (
+            auth.applicationId !== appRecord.id ||
+            auth.redirectUri !== redirect_uri ||
+            appRecord.redirectUri !== redirect_uri
+        ) {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description:
+                    "Authorization code was not issued for this client or redirect_uri.",
+            });
+        }
+
+        const consumeResult = await db
+            .update(authorizationCodesTable)
+            .set({ consumedAt: new Date() })
+            .where(
+                and(
+                    eq(authorizationCodesTable.id, auth.id),
+                    isNull(authorizationCodesTable.consumedAt),
+                ),
+            )
+            .returning({ id: authorizationCodesTable.id });
+
+        if (!consumeResult.length) {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description:
+                    "Authorization code has already been consumed.",
+            });
+        }
+
+        const [user] = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.id, auth.userId))
+            .limit(1);
+
+        if (!user) {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description: "User not found for authorization code.",
+            });
+        }
+
+        const ISSUER = `http://localhost:${PORT}`;
+        const now = Math.floor(Date.now() / 1000);
+
+        const baseClaims: BaseClaims = {
+            iss: ISSUER,
+            sub: user.id,
+            iat: now,
+            client_id: appRecord.clientId,
+            scope: auth.scopes.join(" "),
+        };
+
+        const accessClaims = {
+            ...baseClaims,
+            type: "access" as const,
+            exp: now + 15 * 60,
+            ...(auth.scopes.includes("email") && {
+                email: user.email,
+                email_verified: String(user.emailVerified),
+            }),
+            ...(auth.scopes.includes("profile") && {
+                given_name: user.firstName ?? "",
+                family_name: user.lastName ?? "",
+                name: [user.firstName, user.lastName].filter(Boolean).join(" "),
+                picture: user.profileImageUrl ?? undefined,
+            }),
+        };
+
+        const accessToken = JWT.sign(accessClaims, PRIVATE_KEY, {
+            algorithm: "RS256",
+        });
+
+        const refreshClaims = {
+            ...baseClaims,
+            type: "refresh" as const,
+            exp: now + 7 * 24 * 60 * 60,
+        };
+
+        const refreshToken = JWT.sign(refreshClaims, PRIVATE_KEY, {
+            algorithm: "RS256",
+        });
+
+        return res.json({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            token_type: "Bearer",
+            expires_in: 15 * 60,
+            scope: auth.scopes.join(" "),
         });
     }
 
-    if (!code || !client_id || !client_secret || !redirect_uri) {
-        return res.status(400).json({
-            error: "invalid_request",
-            error_description:
-                "code, client_id, client_secret and redirect_uri are required.",
+    if (grant_type === "refresh_token") {
+        if (!refresh_token || !client_id || !client_secret) {
+            return res.status(400).json({
+                error: "invalid_request",
+                error_description:
+                    "refresh_token, client_id and client_secret are required.",
+            });
+        }
+
+        const [appRecord] = await db
+            .select()
+            .from(applicationsTable)
+            .where(eq(applicationsTable.clientId, client_id))
+            .limit(1);
+
+        if (!appRecord) {
+            return res.status(401).json({
+                error: "invalid_client",
+                error_description: "Client authentication failed.",
+            });
+        }
+
+        const secretHash = crypto
+            .createHash("sha256")
+            .update(client_secret)
+            .digest("hex");
+
+        if (secretHash !== appRecord.clientSecret) {
+            return res.status(401).json({
+                error: "invalid_client",
+                error_description: "Client authentication failed.",
+            });
+        }
+
+        let refreshClaims: JWTClaims;
+        try {
+            refreshClaims = JWT.verify(refresh_token, PUBLIC_KEY, {
+                algorithms: ["RS256"],
+            }) as JWTClaims;
+        } catch {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description: "Refresh token is invalid or expired.",
+            });
+        }
+
+        if (
+            refreshClaims.type !== "refresh" ||
+            refreshClaims.client_id !== client_id
+        ) {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description:
+                    "Refresh token is not valid for this client.",
+            });
+        }
+
+        const [user] = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.id, refreshClaims.sub))
+            .limit(1);
+
+        if (!user) {
+            return res.status(400).json({
+                error: "invalid_grant",
+                error_description: "User not found for refresh token.",
+            });
+        }
+
+        const ISSUER = `http://localhost:${PORT}`;
+        const now = Math.floor(Date.now() / 1000);
+        const scopes = refreshClaims.scope
+            ? refreshClaims.scope.split(/\s+/).filter(Boolean)
+            : (appRecord.scopes ?? ["openid"]);
+
+        const accessClaims = {
+            iss: ISSUER,
+            sub: user.id,
+            iat: now,
+            client_id: appRecord.clientId,
+            scope: scopes.join(" "),
+            type: "access" as const,
+            exp: now + 15 * 60,
+            ...(scopes.includes("email") && {
+                email: user.email,
+                email_verified: String(user.emailVerified),
+            }),
+            ...(scopes.includes("profile") && {
+                given_name: user.firstName ?? "",
+                family_name: user.lastName ?? "",
+                name: [user.firstName, user.lastName].filter(Boolean).join(" "),
+                picture: user.profileImageUrl ?? undefined,
+            }),
+        };
+
+        const accessToken = JWT.sign(accessClaims, PRIVATE_KEY, {
+            algorithm: "RS256",
+        });
+
+        return res.json({
+            access_token: accessToken,
+            token_type: "Bearer",
+            expires_in: 15 * 60,
+            scope: scopes.join(" "),
         });
     }
 
-    const [appRecord] = await db
-        .select()
-        .from(applicationsTable)
-        .where(eq(applicationsTable.clientId, client_id))
-        .limit(1);
-
-    if (!appRecord) {
-        return res.status(401).json({
-            error: "invalid_client",
-            error_description: "Client authentication failed.",
-        });
-    }
-
-    const secretHash = crypto
-        .createHash("sha256")
-        .update(client_secret)
-        .digest("hex");
-
-    if (secretHash !== appRecord.clientSecret) {
-        return res.status(401).json({
-            error: "invalid_client",
-            error_description: "Client authentication failed.",
-        });
-    }
-
-    const [auth] = await db
-        .select()
-        .from(authorizationCodesTable)
-        .where(eq(authorizationCodesTable.code, code))
-        .limit(1);
-
-    if (
-        !auth ||
-        new Date(auth.expiresAt).getTime() < Date.now() ||
-        auth.consumedAt !== null
-    ) {
-        return res.status(400).json({
-            error: "invalid_grant",
-            error_description: "Authorization code is invalid or expired.",
-        });
-    }
-
-    if (
-        auth.applicationId !== appRecord.id ||
-        auth.redirectUri !== redirect_uri ||
-        appRecord.redirectUri !== redirect_uri
-    ) {
-        return res.status(400).json({
-            error: "invalid_grant",
-            error_description:
-                "Authorization code was not issued for this client or redirect_uri.",
-        });
-    }
-
-    const consumeResult = await db
-        .update(authorizationCodesTable)
-        .set({ consumedAt: new Date() })
-        .where(
-            and(
-                eq(authorizationCodesTable.id, auth.id),
-                isNull(authorizationCodesTable.consumedAt),
-            ),
-        )
-        .returning({ id: authorizationCodesTable.id });
-
-    if (!consumeResult.length) {
-        return res.status(400).json({
-            error: "invalid_grant",
-            error_description: "Authorization code has already been consumed.",
-        });
-    }
-
-    const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, auth.userId))
-        .limit(1);
-
-    if (!user) {
-        return res.status(400).json({
-            error: "invalid_grant",
-            error_description: "User not found for authorization code.",
-        });
-    }
-
-    const ISSUER = `http://localhost:${PORT}`;
-    const now = Math.floor(Date.now() / 1000);
-
-    const baseClaims: BaseClaims = {
-        iss: ISSUER,
-        sub: user.id,
-        iat: now,
-    };
-
-    // Access token (short expiry, includes scopes/claims)
-    const accessClaims = {
-        ...baseClaims,
-        exp: now + 15 * 60, // 15 minutes
-        scope: auth.scopes.join(" "),
-        ...(auth.scopes.includes("email") && {
-            email: user.email,
-            email_verified: String(user.emailVerified),
-        }),
-        ...(auth.scopes.includes("profile") && {
-            given_name: user.firstName ?? "",
-            family_name: user.lastName ?? "",
-            name: [user.firstName, user.lastName].filter(Boolean).join(" "),
-            picture: user.profileImageUrl ?? undefined,
-        }),
-    };
-
-    const accessToken = JWT.sign(accessClaims, PRIVATE_KEY, {
-        algorithm: "RS256",
-    });
-
-    // Refresh token (long expiry, minimal claims)
-    const refreshClaims = {
-        ...baseClaims,
-        exp: now + 7 * 24 * 60 * 60, // 7 days
-        type: "refresh",
-    };
-
-    const refreshToken = JWT.sign(refreshClaims, PRIVATE_KEY, {
-        algorithm: "RS256",
-    });
-
-    return res.json({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        token_type: "Bearer",
-        expires_in: 15 * 60, // seconds
-        scope: auth.scopes.join(" "),
+    return res.status(400).json({
+        error: "unsupported_grant_type",
+        error_description:
+            "Only authorization_code and refresh_token grant_type are supported.",
     });
 });
 
@@ -256,7 +371,7 @@ app.get("/o/authenticate", (req, res) => {
 });
 
 app.post("/o/authenticate/sign-in", async (req, res) => {
-    const { email, password, client_id, redirect_uri } = req.body;
+    const { email, password, client_id, redirect_uri, state } = req.body;
 
     if (!email || !password) {
         return res
@@ -293,9 +408,12 @@ app.post("/o/authenticate/sign-in", async (req, res) => {
         return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const state = crypto.randomBytes(8).toString("hex");
+    const nextState =
+        typeof state === "string" && state.trim()
+            ? state
+            : crypto.randomBytes(8).toString("hex");
     req.session.userId = user.id;
-    req.session.oauthState = state;
+    req.session.oauthState = nextState;
     await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
             if (err) {
@@ -307,7 +425,7 @@ app.post("/o/authenticate/sign-in", async (req, res) => {
         });
     });
     return res.json({
-        redirect: `/consent.html?client_id=${encodeURIComponent(client_id)}&redirect_uri=${encodeURIComponent(redirect_uri)}&state=${encodeURIComponent(state)}`,
+        redirect: `/consent.html?client_id=${encodeURIComponent(client_id)}&redirect_uri=${encodeURIComponent(redirect_uri)}&state=${encodeURIComponent(nextState)}`,
     });
 });
 
@@ -463,7 +581,10 @@ app.get("/auth/callback", async (req, res) => {
     } catch (error) {
         return res.status(500).json({
             ok: false,
-            message: error instanceof Error ? error.message : "Token exchange failed.",
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Token exchange failed.",
         });
     }
 
